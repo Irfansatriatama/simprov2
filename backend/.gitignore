@@ -1,0 +1,21 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/generated/prisma
+
+# Keep tree for Multer categories; ignore uploaded files only
+uploads/*
+!uploads/.gitkeep
+!uploads/avatars/
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+!uploads/attachments/
+uploads/attachments/*
+!uploads/attachments/.gitkeep
+!uploads/maintenance/
+uploads/maintenance/*
+!uploads/maintenance/.gitkeep
+!uploads/clients/
+uploads/clients/*
+!uploads/clients/.gitkeep

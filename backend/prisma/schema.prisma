@@ -1,0 +1,676 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+enum ProjectRole {
+  PM
+  DEVELOPER
+  VIEWER
+  CLIENT
+}
+
+enum SprintStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+}
+
+enum NotePermission {
+  VIEW
+  EDIT
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  emailVerified   Boolean   @default(false)
+  image           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  username        String?   @unique
+  displayUsername String?
+  role            String    @default("developer")
+  status          String    @default("active")
+  phoneNumber     String?
+  company         String?
+  department      String?
+  position        String?
+  bio             String?
+  linkedin        String?
+  github          String?
+  timezone        String?   @default("Asia/Jakarta")
+  lastLogin       DateTime?
+
+  sessions              Session[]
+  accounts              Account[]
+  projectMemberships    ProjectMember[]
+  createdProjects       Project[]          @relation("ProjectCreator")
+  taskAssignments       TaskAssignee[]
+  reportedTasks         Task[]             @relation("TaskReporter")
+  maintenancePics       MaintenancePicDev[]
+  maintenanceAssigned   Maintenance[]      @relation("MaintenanceAssignee")
+  meetingAttendances    MeetingAttendee[]
+  createdMeetings       Meeting[]          @relation("MeetingCreator")
+  discussions           Discussion[]
+  discussionReplies     DiscussionReply[]
+  activityLogs          ActivityLog[]
+  notifications         Notification[]     @relation("NotificationRecipient")
+  actorNotifications    Notification[]     @relation("NotificationActor")
+  notes                 Note[]             @relation("NoteOwner")
+  noteShares            NoteShare[]
+  noteAudits            NoteAudit[]
+  assignedAssets        Asset[]
+
+  @@map("user")
+  @@index([username])
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+  @@index([userId])
+  @@index([token])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  companyName   String
+  industry      String?
+  contactPerson String?
+  contactEmail  String?
+  contactPhone  String?
+  address       String?
+  website       String?
+  logo          String?
+  notes         String?
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  projects Project[]
+
+  @@index([status])
+  @@index([companyName])
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  name          String
+  code          String    @unique
+  description   String?
+  status        String    @default("active")
+  phase         String?
+  priority      String    @default("medium")
+  clientId      String?
+  parentId      String?
+  startDate     DateTime?
+  endDate       DateTime?
+  actualEndDate DateTime?
+  budget        Decimal?  @db.Decimal(15, 2)
+  actualCost    Decimal?  @db.Decimal(15, 2)
+  tags          String[]
+  coverColor    String?
+  progress      Float?    @default(0)
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  client       Client?          @relation(fields: [clientId], references: [id])
+  parent       Project?         @relation("ProjectHierarchy", fields: [parentId], references: [id])
+  children     Project[]        @relation("ProjectHierarchy")
+  createdBy    User             @relation("ProjectCreator", fields: [createdById], references: [id])
+  members      ProjectMember[]
+  tasks        Task[]
+  sprints      Sprint[]
+  maintenance  Maintenance[]
+  discussions  Discussion[]
+  activityLogs ActivityLog[]
+  notifications Notification[]
+  meetingLinks MeetingProject[]
+
+  @@index([status])
+  @@index([phase])
+  @@index([clientId])
+  @@index([parentId])
+  @@index([createdById])
+  @@index([code])
+}
+
+model ProjectMember {
+  projectId   String
+  userId      String
+  projectRole ProjectRole @default(DEVELOPER)
+  createdAt   DateTime    @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Sprint {
+  id         String       @id @default(cuid())
+  projectId  String
+  name       String
+  goal       String?
+  startDate  DateTime?
+  endDate    DateTime?
+  status     SprintStatus @default(PLANNING)
+  retroNotes String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model Task {
+  id           String    @id @default(cuid())
+  projectId    String
+  title        String
+  description  String?
+  type         String    @default("task")
+  status       String    @default("todo")
+  priority     String    @default("medium")
+  reporterId   String
+  sprintId     String?
+  epicId       String?
+  parentTaskId String?
+  storyPoints  Int?
+  startDate    DateTime?
+  dueDate      DateTime?
+  completedAt  DateTime?
+  tags         String[]
+  timeLogged   Float?    @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter     User             @relation("TaskReporter", fields: [reporterId], references: [id])
+  sprint       Sprint?          @relation(fields: [sprintId], references: [id])
+  parentTask   Task?            @relation("TaskHierarchy", fields: [parentTaskId], references: [id])
+  subTasks     Task[]           @relation("TaskHierarchy")
+  assignees    TaskAssignee[]
+  attachments  TaskAttachment[]
+  comments     TaskComment[]
+  checklists   TaskChecklist[]
+  dependsOn    TaskDependency[] @relation("TaskDependant")
+  dependedOnBy TaskDependency[] @relation("TaskDependency")
+
+  @@index([projectId])
+  @@index([sprintId])
+  @@index([status])
+  @@index([priority])
+  @@index([reporterId])
+  @@index([parentTaskId])
+  @@index([epicId])
+  @@index([dueDate])
+  @@index([projectId, status])
+  @@index([projectId, sprintId])
+}
+
+model TaskAssignee {
+  taskId String
+  userId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+}
+
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  url       String
+  name      String
+  mimeType  String?
+  size      Int?
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskChecklist {
+  id     String  @id @default(cuid())
+  taskId String
+  text   String
+  done   Boolean @default(false)
+  order  Int     @default(0)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskDependency {
+  id          String @id @default(cuid())
+  taskId      String
+  dependsOnId String
+  type        String @default("blocks")
+
+  task      Task @relation("TaskDependant", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("TaskDependency", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnId])
+  @@index([taskId])
+  @@index([dependsOnId])
+}
+
+model Maintenance {
+  id              String    @id @default(cuid())
+  projectId       String
+  ticketNumber    String    @unique
+  title           String
+  description     String?
+  type            String
+  severity        String    @default("medium")
+  priority        String    @default("medium")
+  status          String    @default("backlog")
+  reportedBy      String?
+  reportedDate    DateTime?
+  assignedDate    DateTime?
+  dueDate         DateTime?
+  orderedBy       String?
+  picClient       String?
+  resolvedDate    DateTime?
+  assignedTo      String?
+  estimatedHours  Float?
+  actualHours     Float?
+  costEstimate    Decimal?  @db.Decimal(15, 2)
+  notes           String?
+  resolutionNotes String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  project      Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee     User?                    @relation("MaintenanceAssignee", fields: [assignedTo], references: [id])
+  picDevs      MaintenancePicDev[]
+  attachments  MaintenanceAttachment[]
+  activityLogs MaintenanceActivityLog[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([severity])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([projectId, status])
+  @@index([ticketNumber])
+}
+
+model MaintenancePicDev {
+  maintenanceId String
+  userId        String
+
+  maintenance Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([maintenanceId, userId])
+  @@index([userId])
+}
+
+model MaintenanceAttachment {
+  id            String   @id @default(cuid())
+  maintenanceId String
+  url           String
+  name          String
+  mimeType      String?
+  size          Int?
+  uploadedBy    String?
+  createdAt     DateTime @default(now())
+
+  maintenance Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceId])
+}
+
+model MaintenanceActivityLog {
+  id            String   @id @default(cuid())
+  maintenanceId String
+  text          String
+  at            DateTime @default(now())
+
+  maintenance Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceId])
+}
+
+model Meeting {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String?
+  type               String
+  date               DateTime
+  startTime          String
+  endTime            String
+  location           String?
+  status             String   @default("scheduled")
+  notulensiContent   String?
+  notulensiCreatedBy String?
+  notulensiUpdatedAt DateTime?
+  createdById        String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdBy   User                @relation("MeetingCreator", fields: [createdById], references: [id])
+  projects    MeetingProject[]
+  attendees   MeetingAttendee[]
+  agendaItems MeetingAgendaItem[]
+  actionItems MeetingActionItem[]
+
+  @@index([date])
+  @@index([createdById])
+  @@index([status])
+}
+
+model MeetingProject {
+  meetingId String
+  projectId String
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, projectId])
+}
+
+model MeetingAttendee {
+  meetingId String
+  userId    String
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, userId])
+  @@index([userId])
+}
+
+model MeetingAgendaItem {
+  id        String  @id @default(cuid())
+  meetingId String
+  text      String
+  order     Int     @default(0)
+  done      Boolean @default(false)
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+}
+
+model MeetingActionItem {
+  id         String    @id @default(cuid())
+  meetingId  String
+  title      String
+  assigneeId String?
+  dueDate    DateTime?
+  done       Boolean   @default(false)
+  taskId     String?
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([assigneeId])
+}
+
+model Discussion {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  content   String
+  type      String   @default("general")
+  authorId  String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project     Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author      User                   @relation(fields: [authorId], references: [id])
+  replies     DiscussionReply[]
+  attachments DiscussionAttachment[]
+
+  @@index([projectId])
+  @@index([authorId])
+  @@index([pinned])
+  @@index([projectId, pinned])
+}
+
+model DiscussionReply {
+  id           String   @id @default(cuid())
+  discussionId String
+  authorId     String
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  discussion Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  author     User       @relation(fields: [authorId], references: [id])
+
+  @@index([discussionId])
+}
+
+model DiscussionAttachment {
+  id           String   @id @default(cuid())
+  discussionId String
+  url          String
+  name         String
+  mimeType     String?
+  size         Int?
+  createdAt    DateTime @default(now())
+
+  discussion Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+
+  @@index([discussionId])
+}
+
+model Asset {
+  id             String    @id @default(cuid())
+  name           String
+  category       String?
+  description    String?
+  serialNumber   String?
+  purchaseDate   DateTime?
+  purchasePrice  Decimal?  @db.Decimal(15, 2)
+  vendor         String?
+  assignedTo     String?
+  projectId      String?
+  status         String    @default("available")
+  warrantyExpiry DateTime?
+  notes          String?
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  assignedUser User? @relation(fields: [assignedTo], references: [id])
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([projectId])
+  @@index([category])
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  projectId  String?
+  entityType String
+  entityId   String
+  entityName String?
+  action     String
+  actorId    String
+  actorName  String
+  changes    Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  project Project? @relation(fields: [projectId], references: [id])
+  actor   User     @relation(fields: [actorId], references: [id])
+
+  @@index([projectId])
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([projectId, createdAt])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  actorId     String?
+  actorName   String?
+  actorAvatar String?
+  entityType  String
+  entityId    String
+  entityName  String?
+  action      String
+  message     String
+  projectId   String?
+  projectName String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user    User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User?    @relation("NotificationActor", fields: [actorId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+  @@index([projectId])
+}
+
+model Setting {
+  key   String @id
+  value String
+
+  @@index([key])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  ownerId   String
+  title     String
+  content   String   @default("")
+  folderId  String?
+  pinned    Boolean  @default(false)
+  color     String?
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner  User        @relation("NoteOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  shares NoteShare[]
+  audits NoteAudit[]
+
+  @@index([ownerId])
+  @@index([folderId])
+  @@index([pinned])
+  @@index([ownerId, folderId])
+}
+
+model NoteShare {
+  noteId     String
+  userId     String
+  permission NotePermission @default(VIEW)
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, userId])
+  @@index([userId])
+}
+
+model NoteAudit {
+  id        String   @id @default(cuid())
+  noteId    String
+  userId    String
+  userName  String
+  action    String
+  detail    String?
+  diff      Json?
+  createdAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([noteId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model NoteFolder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"activity-log.module.js","sourceRoot":"","sources":["../../src/activity-log/activity-log.module.ts"],"names":[],"mappings":";;;;;;;;;AAAA,2CAAwC;AACxC,uEAAkE;AAClE,iEAAgE;AAMzD,IAAM,iBAAiB,GAAvB,MAAM,iBAAiB;CAAG,CAAA;AAApB,8CAAiB;4BAAjB,iBAAiB;IAJ7B,IAAA,eAAM,EAAC;QACN,WAAW,EAAE,CAAC,+CAAqB,CAAC;QACpC,SAAS,EAAE,CAAC,6CAAsB,CAAC;KACpC,CAAC;GACW,iBAAiB,CAAG"}
