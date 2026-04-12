@@ -14,6 +14,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 
 @Controller('users')
 export class UsersController {
@@ -44,6 +45,29 @@ export class UsersController {
     );
   }
 
+  @Patch(':id/status')
+  patchStatus(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Body() body: UpdateStatusDto,
+  ) {
+    return this.users.updateStatus(session.user.role as string, id, body);
+  }
+
+  @Patch(':id/password')
+  setPassword(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Body() body: SetPasswordDto,
+  ) {
+    return this.users.setPassword(
+      session.user.role as string,
+      session.user.id,
+      id,
+      body.password,
+    );
+  }
+
   @Patch(':id')
   patch(
     @Session() session: UserSession<typeof auth>,
@@ -64,14 +88,5 @@ export class UsersController {
     @Param('id') id: string,
   ) {
     return this.users.remove(session.user.role as string, id);
-  }
-
-  @Patch(':id/status')
-  patchStatus(
-    @Session() session: UserSession<typeof auth>,
-    @Param('id') id: string,
-    @Body() body: UpdateStatusDto,
-  ) {
-    return this.users.updateStatus(session.user.role as string, id, body);
   }
 }

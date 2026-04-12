@@ -1,12 +1,16 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsDateString,
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { ProjectMemberAssignmentDto } from './project-member-assignment.dto';
 
 export class CreateProjectDto {
   @IsString()
@@ -38,21 +42,34 @@ export class CreateProjectDto {
   clientId?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
-  parentId?: string;
+  parentId?: string | null;
 
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @IsDateString()
+  actualEndDate?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   budget?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  actualCost?: number;
 
   @IsOptional()
   @IsArray()
@@ -62,4 +79,15 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString()
   coverColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  coverImageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProjectMemberAssignmentDto)
+  members?: ProjectMemberAssignmentDto[];
 }

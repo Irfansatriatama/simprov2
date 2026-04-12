@@ -21,11 +21,17 @@ export class DiscussionsController {
   list(
     @Session() session: UserSession<typeof auth>,
     @Query('projectId') projectId: string,
+    @Query('expanded') expanded?: string,
   ) {
+    const exp =
+      expanded === '1' ||
+      expanded === 'true' ||
+      expanded === 'yes';
     return this.discussions.list(
       session.user.id,
       session.user.role as string,
       projectId,
+      exp,
     );
   }
 
@@ -122,6 +128,33 @@ export class DiscussionsController {
     return this.discussions.pin(
       { id: session.user.id, role: session.user.role as string },
       id,
+    );
+  }
+
+  @Post(':id/attachments')
+  addAttachment(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Body()
+    body: { url: string; name: string; mimeType?: string; size?: number },
+  ) {
+    return this.discussions.addAttachment(
+      { id: session.user.id, role: session.user.role as string },
+      id,
+      body,
+    );
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  removeAttachment(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+  ) {
+    return this.discussions.removeAttachment(
+      { id: session.user.id, role: session.user.role as string },
+      id,
+      attachmentId,
     );
   }
 }

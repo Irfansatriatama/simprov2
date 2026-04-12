@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectsService = void 0;
 const common_1 = require("@nestjs/common");
+const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const activity_log_service_1 = require("../common/services/activity-log.service");
 const project_access_1 = require("../lib/project-access");
@@ -27,6 +28,7 @@ const cardSelect = {
     endDate: true,
     progress: true,
     coverColor: true,
+    coverImageUrl: true,
     tags: true,
     createdAt: true,
 };
@@ -40,6 +42,57 @@ let ProjectsService = class ProjectsService {
     actor(session) {
         return { id: session.id, name: session.name };
     }
+    coalescePatchDate(v) {
+        if (v === undefined)
+            return undefined;
+        if (v === null)
+            return null;
+        const t = String(v).trim();
+        if (!t)
+            return null;
+        const d = new Date(t);
+        return Number.isNaN(d.getTime()) ? null : d;
+    }
+    defaultCreatorProjectRole(sessionRole) {
+        return sessionRole === 'pm' ? client_1.ProjectRole.PM : client_1.ProjectRole.DEVELOPER;
+    }
+    async syncClientOrgUsersToProject(tx, projectId, clientId) {
+        if (!clientId)
+            return;
+        const users = await tx.user.findMany({
+            where: { clientId, role: 'client' },
+            select: { id: true },
+        });
+        if (users.length === 0)
+            return;
+        const existing = new Set((await tx.projectMember.findMany({
+            where: { projectId },
+            select: { userId: true },
+        })).map((m) => m.userId));
+        const rows = users
+            .filter((u) => !existing.has(u.id))
+            .map((u) => ({
+            projectId,
+            userId: u.id,
+            projectRole: client_1.ProjectRole.CLIENT,
+        }));
+        if (rows.length === 0)
+            return;
+        await tx.projectMember.createMany({ data: rows, skipDuplicates: true });
+    }
+    buildMemberCreates(session, assignments) {
+        const roleMap = new Map();
+        for (const m of assignments ?? []) {
+            roleMap.set(m.userId, m.projectRole);
+        }
+        if (!roleMap.has(session.id)) {
+            roleMap.set(session.id, this.defaultCreatorProjectRole(session.role));
+        }
+        return [...roleMap.entries()].map(([userId, projectRole]) => ({
+            userId,
+            projectRole,
+        }));
+    }
     async list(userId, role) {
         const where = role === 'admin'
             ? {}
@@ -50,7 +103,9 @@ let ProjectsService = class ProjectsService {
             where,
             select: {
                 ...cardSelect,
-                client: { select: { id: true, companyName: true } },
+                description: true,
+                budget: true,
+                client: { select: { id: true, companyName: true, logo: true } },
                 members: {
                     take: 5,
                     select: {
@@ -64,7 +119,9 @@ let ProjectsService = class ProjectsService {
         });
     }
     async create(session, dto) {
-        if (session.role === 'viewer' || session.role === 'client') {
+        if (session.role === 'viewer' ||
+            session.role === 'client' ||
+            session.role === 'developer') {
             throw new common_1.ForbiddenException();
         }
         const exists = await this.prisma.project.findUnique({
@@ -74,6 +131,7 @@ let ProjectsService = class ProjectsService {
         if (exists)
             throw new common_1.ConflictException('Project code already exists');
         return this.prisma.$transaction(async (tx) => {
+            const memberCreates = this.buildMemberCreates(session, dto.members);
             const p = await tx.project.create({
                 data: {
                     name: dto.name,
@@ -86,19 +144,22 @@ let ProjectsService = class ProjectsService {
                     parentId: dto.parentId,
                     startDate: dto.startDate ? new Date(dto.startDate) : undefined,
                     endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+                    actualEndDate: dto.actualEndDate
+                        ? new Date(dto.actualEndDate)
+                        : undefined,
                     budget: dto.budget,
+                    actualCost: dto.actualCost,
                     tags: dto.tags ?? [],
                     coverColor: dto.coverColor,
+                    coverImageUrl: dto.coverImageUrl?.trim() || undefined,
                     createdById: session.id,
                     members: {
-                        create: {
-                            userId: session.id,
-                            projectRole: session.role === 'pm' ? 'PM' : 'DEVELOPER',
-                        },
+                        create: memberCreates,
                     },
                 },
                 select: cardSelect,
             });
+            await this.syncClientOrgUsersToProject(tx, p.id, p.clientId ?? null);
             await this.activityLog.log(tx, {
                 projectId: p.id,
                 entityType: 'project',
@@ -124,11 +185,35 @@ let ProjectsService = class ProjectsService {
                 client: { select: { id: true, companyName: true, logo: true } },
                 parent: { select: { id: true, name: true, code: true } },
                 createdBy: { select: { id: true, name: true, image: true } },
+                members: {
+                    take: 64,
+                    select: {
+                        projectRole: true,
+                        user: {
+                            select: { id: true, name: true, image: true },
+                        },
+                    },
+                },
             },
         });
         if (!p)
             throw new common_1.NotFoundException();
-        return p;
+        const [taskDone, taskTotal, maintenanceOpen] = await Promise.all([
+            this.prisma.task.count({
+                where: {
+                    projectId: id,
+                    OR: [{ status: 'done' }, { status: 'completed' }],
+                },
+            }),
+            this.prisma.task.count({ where: { projectId: id } }),
+            this.prisma.maintenance.count({
+                where: {
+                    projectId: id,
+                    status: { notIn: ['completed', 'canceled'] },
+                },
+            }),
+        ]);
+        return { ...p, taskDone, taskTotal, maintenanceOpen };
     }
     async update(session, id, dto) {
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, id);
@@ -153,14 +238,31 @@ let ProjectsService = class ProjectsService {
                     priority: dto.priority,
                     clientId: dto.clientId,
                     parentId: dto.parentId,
-                    startDate: dto.startDate ? new Date(dto.startDate) : dto.startDate,
-                    endDate: dto.endDate ? new Date(dto.endDate) : dto.endDate,
+                    startDate: this.coalescePatchDate(dto.startDate),
+                    endDate: this.coalescePatchDate(dto.endDate),
+                    actualEndDate: this.coalescePatchDate(dto.actualEndDate),
                     budget: dto.budget,
+                    actualCost: dto.actualCost,
                     tags: dto.tags,
                     coverColor: dto.coverColor,
+                    coverImageUrl: dto.coverImageUrl === undefined
+                        ? undefined
+                        : dto.coverImageUrl?.trim() || null,
                 },
                 select: { ...cardSelect, description: true },
             });
+            if (dto.members !== undefined) {
+                await tx.projectMember.deleteMany({ where: { projectId: id } });
+                const rows = this.buildMemberCreates(session, dto.members);
+                await tx.projectMember.createMany({
+                    data: rows.map((m) => ({
+                        projectId: id,
+                        userId: m.userId,
+                        projectRole: m.projectRole,
+                    })),
+                });
+            }
+            await this.syncClientOrgUsersToProject(tx, id, p.clientId ?? null);
             await this.activityLog.log(tx, {
                 projectId: id,
                 entityType: 'project',

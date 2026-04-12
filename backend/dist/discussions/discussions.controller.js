@@ -21,8 +21,11 @@ let DiscussionsController = class DiscussionsController {
     constructor(discussions) {
         this.discussions = discussions;
     }
-    list(session, projectId) {
-        return this.discussions.list(session.user.id, session.user.role, projectId);
+    list(session, projectId, expanded) {
+        const exp = expanded === '1' ||
+            expanded === 'true' ||
+            expanded === 'yes';
+        return this.discussions.list(session.user.id, session.user.role, projectId, exp);
     }
     create(session, body) {
         return this.discussions.create({ id: session.user.id, role: session.user.role }, body);
@@ -48,14 +51,21 @@ let DiscussionsController = class DiscussionsController {
     pin(session, id) {
         return this.discussions.pin({ id: session.user.id, role: session.user.role }, id);
     }
+    addAttachment(session, id, body) {
+        return this.discussions.addAttachment({ id: session.user.id, role: session.user.role }, id, body);
+    }
+    removeAttachment(session, id, attachmentId) {
+        return this.discussions.removeAttachment({ id: session.user.id, role: session.user.role }, id, attachmentId);
+    }
 };
 exports.DiscussionsController = DiscussionsController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, nestjs_better_auth_1.Session)()),
     __param(1, (0, common_1.Query)('projectId')),
+    __param(2, (0, common_1.Query)('expanded')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], DiscussionsController.prototype, "list", null);
 __decorate([
@@ -127,6 +137,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], DiscussionsController.prototype, "pin", null);
+__decorate([
+    (0, common_1.Post)(':id/attachments'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], DiscussionsController.prototype, "addAttachment", null);
+__decorate([
+    (0, common_1.Delete)(':id/attachments/:attachmentId'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Param)('attachmentId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], DiscussionsController.prototype, "removeAttachment", null);
 exports.DiscussionsController = DiscussionsController = __decorate([
     (0, common_1.Controller)('discussions'),
     __metadata("design:paramtypes", [discussions_service_1.DiscussionsService])

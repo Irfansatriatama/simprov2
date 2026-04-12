@@ -14,66 +14,96 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClientsController = void 0;
 const common_1 = require("@nestjs/common");
+const nestjs_better_auth_1 = require("@thallesp/nestjs-better-auth");
+const users_service_1 = require("../users/users.service");
 const clients_service_1 = require("./clients.service");
+function assertPmOrAdmin(role) {
+    if (role !== 'admin' && role !== 'pm') {
+        throw new common_1.ForbiddenException();
+    }
+}
 let ClientsController = class ClientsController {
     clients;
-    constructor(clients) {
+    users;
+    constructor(clients, users) {
         this.clients = clients;
+        this.users = users;
     }
-    list() {
+    list(_session) {
         return this.clients.list();
     }
-    create(body) {
+    create(session, body) {
+        assertPmOrAdmin(session.user.role);
         return this.clients.create(body);
     }
-    get(id) {
+    listPortalUsers(session, id) {
+        assertPmOrAdmin(session.user.role);
+        return this.users.listByClientId(session.user.role, id);
+    }
+    get(_session, id) {
         return this.clients.get(id);
     }
-    patch(id, body) {
+    patch(session, id, body) {
+        assertPmOrAdmin(session.user.role);
         return this.clients.update(id, body);
     }
-    remove(id) {
+    remove(session, id) {
+        assertPmOrAdmin(session.user.role);
         return this.clients.remove(id);
     }
 };
 exports.ClientsController = ClientsController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "list", null);
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "create", null);
 __decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    (0, common_1.Get)(':id/portal-users'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ClientsController.prototype, "listPortalUsers", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "get", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "patch", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "remove", null);
 exports.ClientsController = ClientsController = __decorate([
     (0, common_1.Controller)('clients'),
-    __metadata("design:paramtypes", [clients_service_1.ClientsService])
+    __metadata("design:paramtypes", [clients_service_1.ClientsService,
+        users_service_1.UsersService])
 ], ClientsController);
 //# sourceMappingURL=clients.controller.js.map

@@ -67,12 +67,16 @@ model User {
   noteShares            NoteShare[]
   noteAudits            NoteAudit[]
   assignedAssets        Asset[]
+  // Links client-role users to Client master; used for auto project membership.
+  clientId              String?
+  clientOrg             Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@map("user")
   @@index([username])
   @@index([email])
   @@index([role])
   @@index([status])
+  @@index([clientId])
 }
 
 model Session {
@@ -138,6 +142,7 @@ model Client {
   updatedAt     DateTime @updatedAt
 
   projects Project[]
+  users    User[]
 
   @@index([status])
   @@index([companyName])
@@ -160,6 +165,7 @@ model Project {
   actualCost    Decimal?  @db.Decimal(15, 2)
   tags          String[]
   coverColor    String?
+  coverImageUrl String?
   progress      Float?    @default(0)
   createdById   String
   createdAt     DateTime  @default(now())
@@ -425,8 +431,9 @@ model Meeting {
   createdBy   User                @relation("MeetingCreator", fields: [createdById], references: [id])
   projects    MeetingProject[]
   attendees   MeetingAttendee[]
-  agendaItems MeetingAgendaItem[]
-  actionItems MeetingActionItem[]
+  agendaItems            MeetingAgendaItem[]
+  actionItems            MeetingActionItem[]
+  notulensiAttachments   MeetingNotulensiAttachment[]
 
   @@index([date])
   @@index([createdById])
@@ -479,6 +486,21 @@ model MeetingActionItem {
 
   @@index([meetingId])
   @@index([assigneeId])
+}
+
+model MeetingNotulensiAttachment {
+  id          String   @id @default(cuid())
+  meetingId   String
+  url         String
+  name        String
+  mimeType    String?
+  size        Int?
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
 }
 
 model Discussion {

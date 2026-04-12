@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { createAuthMiddleware } from 'better-auth/api';
 import { username } from 'better-auth/plugins';
 import { PrismaClient } from '@prisma/client';
 
@@ -7,11 +8,36 @@ const prisma = new PrismaClient();
 
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+const LAST_LOGIN_PATHS = new Set([
+  '/sign-in/email',
+  '/sign-in/username',
+  '/sign-up/email',
+]);
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || frontendUrl,
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: [frontendUrl],
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (!LAST_LOGIN_PATHS.has(ctx.path)) {
+        return;
+      }
+      const userId = ctx.context.newSession?.user?.id;
+      if (!userId) {
+        return;
+      }
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { lastLogin: new Date() },
+        });
+      } catch (e) {
+        ctx.context.logger?.error?.('Failed to update lastLogin', e);
+      }
+    }),
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
@@ -25,6 +51,7 @@ export const auth = betterAuth({
       status: { type: 'string', defaultValue: 'active' },
       phoneNumber: { type: 'string', required: false },
       company: { type: 'string', required: false },
+      clientId: { type: 'string', required: false },
       department: { type: 'string', required: false },
       position: { type: 'string', required: false },
       bio: { type: 'string', required: false },

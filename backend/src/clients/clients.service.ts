@@ -22,6 +22,7 @@ export class ClientsService {
         address: body.address as string | undefined,
         website: body.website as string | undefined,
         notes: body.notes as string | undefined,
+        logo: body.logo as string | undefined,
         status: (body.status as string) ?? 'active',
       },
     });
@@ -32,9 +33,13 @@ export class ClientsService {
   }
 
   update(id: string, body: Record<string, unknown>) {
+    const data: Record<string, unknown> = { ...body };
+    if (data.logo === '') {
+      data.logo = null;
+    }
     return this.prisma.client.update({
       where: { id },
-      data: body as object,
+      data: data as object,
     });
   }
 

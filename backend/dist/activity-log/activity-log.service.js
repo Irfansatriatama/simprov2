@@ -21,6 +21,9 @@ let ActivityLogReadService = class ActivityLogReadService {
     async list(userId, role, q) {
         if (q.projectId) {
             await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, q.projectId);
+            if (role === 'viewer' || role === 'client') {
+                throw new common_1.ForbiddenException();
+            }
         }
         else if (role !== 'admin' && role !== 'pm') {
             throw new common_1.ForbiddenException('projectId required');
@@ -32,6 +35,8 @@ let ActivityLogReadService = class ActivityLogReadService {
             where.projectId = q.projectId;
         if (q.entityType)
             where.entityType = q.entityType;
+        if (q.entityId)
+            where.entityId = q.entityId;
         const [total, data] = await this.prisma.$transaction([
             this.prisma.activityLog.count({ where }),
             this.prisma.activityLog.findMany({

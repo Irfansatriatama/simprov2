@@ -21,14 +21,30 @@ let MaintenanceController = class MaintenanceController {
     constructor(maintenance) {
         this.maintenance = maintenance;
     }
-    report(session, projectId, from, to, status, type) {
+    report(session, projectId, from, to, statuses, includeSubProjects, search) {
         return this.maintenance.report(session.user.id, session.user.role, {
             projectId,
             from,
             to,
-            status,
-            type,
+            statuses,
+            includeSubProjects,
+            search,
         });
+    }
+    async exportCsv(session, projectId, res, status, severity, assignedTo, priority, type, picDevUserId, q) {
+        const { csv, filename } = await this.maintenance.exportCsv(session.user.id, session.user.role, {
+            projectId,
+            status,
+            severity,
+            assignedTo,
+            priority,
+            type,
+            picDevUserId,
+            search: q,
+        });
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        return csv;
     }
     list(session, projectId, status, severity, assignedTo, page, take) {
         return this.maintenance.list(session.user.id, session.user.role, {
@@ -42,6 +58,12 @@ let MaintenanceController = class MaintenanceController {
     }
     create(session, body) {
         return this.maintenance.create({ id: session.user.id, name: session.user.name, role: session.user.role }, body);
+    }
+    addAttachment(session, id, body) {
+        return this.maintenance.addAttachment({ id: session.user.id, role: session.user.role }, id, body);
+    }
+    removeAttachment(session, id, attachmentId) {
+        return this.maintenance.removeAttachment({ id: session.user.id, role: session.user.role }, id, attachmentId);
     }
     get(session, id) {
         return this.maintenance.getById(session.user.id, session.user.role, id);
@@ -60,12 +82,29 @@ __decorate([
     __param(1, (0, common_1.Query)('projectId')),
     __param(2, (0, common_1.Query)('from')),
     __param(3, (0, common_1.Query)('to')),
-    __param(4, (0, common_1.Query)('status')),
-    __param(5, (0, common_1.Query)('type')),
+    __param(4, (0, common_1.Query)('statuses')),
+    __param(5, (0, common_1.Query)('includeSubProjects')),
+    __param(6, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], MaintenanceController.prototype, "report", null);
+__decorate([
+    (0, common_1.Get)('export'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Query)('projectId')),
+    __param(2, (0, common_1.Res)({ passthrough: true })),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('severity')),
+    __param(5, (0, common_1.Query)('assignedTo')),
+    __param(6, (0, common_1.Query)('priority')),
+    __param(7, (0, common_1.Query)('type')),
+    __param(8, (0, common_1.Query)('picDevUserId')),
+    __param(9, (0, common_1.Query)('q')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object, String, String, String, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], MaintenanceController.prototype, "exportCsv", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, nestjs_better_auth_1.Session)()),
@@ -87,6 +126,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], MaintenanceController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)(':id/attachments'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], MaintenanceController.prototype, "addAttachment", null);
+__decorate([
+    (0, common_1.Delete)(':id/attachments/:attachmentId'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Param)('attachmentId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], MaintenanceController.prototype, "removeAttachment", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, nestjs_better_auth_1.Session)()),

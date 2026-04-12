@@ -26,4 +26,37 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   company?: string;
+
+  /** Required when role is client — links user to Client master record. */
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @IsOptional()
+  @IsString()
+  linkedin?: string;
+
+  @IsOptional()
+  @IsString()
+  github?: string;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'inactive', 'invited'])
+  status?: string;
 }

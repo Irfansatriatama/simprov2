@@ -12,12 +12,16 @@ export class ActivityLogReadService {
     q: {
       projectId?: string;
       entityType?: string;
+      entityId?: string;
       page?: string;
       take?: string;
     },
   ) {
     if (q.projectId) {
       await assertProjectAccess(this.prisma, userId, role, q.projectId);
+      if (role === 'viewer' || role === 'client') {
+        throw new ForbiddenException();
+      }
     } else if (role !== 'admin' && role !== 'pm') {
       throw new ForbiddenException('projectId required');
     }
@@ -26,6 +30,7 @@ export class ActivityLogReadService {
     const where: Record<string, unknown> = {};
     if (q.projectId) where.projectId = q.projectId;
     if (q.entityType) where.entityType = q.entityType;
+    if (q.entityId) where.entityId = q.entityId;
     const [total, data] = await this.prisma.$transaction([
       this.prisma.activityLog.count({ where }),
       this.prisma.activityLog.findMany({

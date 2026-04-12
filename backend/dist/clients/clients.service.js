@@ -33,6 +33,7 @@ let ClientsService = class ClientsService {
                 address: body.address,
                 website: body.website,
                 notes: body.notes,
+                logo: body.logo,
                 status: body.status ?? 'active',
             },
         });
@@ -41,9 +42,13 @@ let ClientsService = class ClientsService {
         return this.prisma.client.findUniqueOrThrow({ where: { id } });
     }
     update(id, body) {
+        const data = { ...body };
+        if (data.logo === '') {
+            data.logo = null;
+        }
         return this.prisma.client.update({
             where: { id },
-            data: body,
+            data: data,
         });
     }
     async remove(id) {

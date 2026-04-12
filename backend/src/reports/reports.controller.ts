@@ -16,6 +16,42 @@ export class ReportsController {
     );
   }
 
+  @Get('dashboard/task-distribution')
+  dashboardTaskDistribution(
+    @Session() session: UserSession<typeof auth>,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.reports.dashboardTaskDistribution(
+      session.user.id,
+      session.user.role as string,
+      projectId,
+    );
+  }
+
+  @Get('dashboard/progress-overview')
+  dashboardProgressOverview(
+    @Session() session: UserSession<typeof auth>,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.reports.dashboardProgressOverview(
+      session.user.id,
+      session.user.role as string,
+      projectId,
+    );
+  }
+
+  @Get('dashboard/upcoming-deadlines')
+  dashboardUpcomingDeadlines(
+    @Session() session: UserSession<typeof auth>,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.reports.dashboardUpcomingDeadlines(
+      session.user.id,
+      session.user.role as string,
+      projectId,
+    );
+  }
+
   @Get('progress')
   progress(
     @Session() session: UserSession<typeof auth>,

@@ -13,12 +13,14 @@ export class ActivityLogController {
     @Session() session: UserSession<typeof auth>,
     @Query('projectId') projectId?: string,
     @Query('entityType') entityType?: string,
+    @Query('entityId') entityId?: string,
     @Query('page') page?: string,
     @Query('take') take?: string,
   ) {
     return this.log.list(session.user.id, session.user.role as string, {
       projectId,
       entityType,
+      entityId,
       page,
       take,
     });

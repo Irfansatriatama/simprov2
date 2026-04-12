@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UploadController = void 0;
 const common_1 = require("@nestjs/common");
+const nestjs_better_auth_1 = require("@thallesp/nestjs-better-auth");
 const platform_express_1 = require("@nestjs/platform-express");
 const multer_1 = require("multer");
 const path_1 = require("path");
@@ -24,7 +25,7 @@ function uploadDir() {
     return process.env.UPLOAD_DIR || (0, path_1.join)(process.cwd(), 'uploads');
 }
 let UploadController = class UploadController {
-    upload(file, category) {
+    upload(_session, file, category) {
         const cat = category || 'attachments';
         return {
             url: `/uploads/${cat}/${file.filename}`,
@@ -33,7 +34,7 @@ let UploadController = class UploadController {
             mimeType: file.mimetype,
         };
     }
-    remove(body) {
+    remove(_session, body) {
         if (!body.url?.startsWith('/uploads/')) {
             return { ok: false };
         }
@@ -67,17 +68,19 @@ __decorate([
             cb(ok ? null : new Error('File type not allowed'), ok);
         },
     })),
-    __param(0, (0, common_1.UploadedFile)()),
-    __param(1, (0, common_1.Query)('category')),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Query)('category')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, Object, String]),
     __metadata("design:returntype", void 0)
 ], UploadController.prototype, "upload", null);
 __decorate([
     (0, common_1.Delete)(),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], UploadController.prototype, "remove", null);
 exports.UploadController = UploadController = __decorate([

@@ -13,8 +13,14 @@ export class NotificationsController {
     @Session() session: UserSession<typeof auth>,
     @Query('page') page?: string,
     @Query('take') take?: string,
+    @Query('unreadOnly') unreadOnly?: string,
   ) {
-    return this.notifications.list(session.user.id, page, take);
+    return this.notifications.list(
+      session.user.id,
+      page,
+      take,
+      unreadOnly,
+    );
   }
 
   @Get('unread-count')

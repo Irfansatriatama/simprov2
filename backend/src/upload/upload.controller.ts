@@ -7,7 +7,10 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
+import { Session } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { auth } from '../auth/auth';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
@@ -45,6 +48,7 @@ export class UploadController {
     }),
   )
   upload(
+    @Session() _session: UserSession<typeof auth>,
     @UploadedFile() file: Express.Multer.File,
     @Query('category') category?: string,
   ) {
@@ -58,7 +62,10 @@ export class UploadController {
   }
 
   @Delete()
-  remove(@Body() body: { url: string }) {
+  remove(
+    @Session() _session: UserSession<typeof auth>,
+    @Body() body: { url: string },
+  ) {
     if (!body.url?.startsWith('/uploads/')) {
       return { ok: false };
     }

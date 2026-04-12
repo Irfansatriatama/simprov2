@@ -21,8 +21,8 @@ let NotificationsController = class NotificationsController {
     constructor(notifications) {
         this.notifications = notifications;
     }
-    list(session, page, take) {
-        return this.notifications.list(session.user.id, page, take);
+    list(session, page, take, unreadOnly) {
+        return this.notifications.list(session.user.id, page, take, unreadOnly);
     }
     async unread(session) {
         const count = await this.notifications.unreadCount(session.user.id);
@@ -41,8 +41,9 @@ __decorate([
     __param(0, (0, nestjs_better_auth_1.Session)()),
     __param(1, (0, common_1.Query)('page')),
     __param(2, (0, common_1.Query)('take')),
+    __param(3, (0, common_1.Query)('unreadOnly')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", void 0)
 ], NotificationsController.prototype, "list", null);
 __decorate([

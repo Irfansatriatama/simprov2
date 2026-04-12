@@ -2,12 +2,35 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { assertProjectAccess } from '../lib/project-access';
 
+function assertDiscussionRole(role: string) {
+  if (
+    !['admin', 'pm', 'developer', 'viewer', 'client'].includes(role)
+  ) {
+    throw new ForbiddenException('Discussion is not available for this role.');
+  }
+}
+
 @Injectable()
 export class DiscussionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(userId: string, role: string, projectId: string) {
+  async list(userId: string, role: string, projectId: string, expanded = false) {
+    assertDiscussionRole(role);
     await assertProjectAccess(this.prisma, userId, role, projectId);
+    if (expanded) {
+      return this.prisma.discussion.findMany({
+        where: { projectId },
+        orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+          replies: {
+            orderBy: { createdAt: 'asc' },
+            include: { author: { select: { id: true, name: true, image: true } } },
+          },
+          attachments: true,
+        },
+      });
+    }
     return this.prisma.discussion.findMany({
       where: { projectId },
       orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
@@ -27,6 +50,7 @@ export class DiscussionsService {
     session: { id: string; role: string },
     body: { projectId: string; title: string; content: string; type?: string },
   ) {
+    assertDiscussionRole(session.role);
     await assertProjectAccess(this.prisma, session.id, session.role, body.projectId);
     return this.prisma.discussion.create({
       data: {
@@ -40,6 +64,7 @@ export class DiscussionsService {
   }
 
   async getById(userId: string, role: string, id: string) {
+    assertDiscussionRole(role);
     const d = await this.prisma.discussion.findUnique({
       where: { id },
       include: {
@@ -61,6 +86,7 @@ export class DiscussionsService {
     id: string,
     body: { title?: string; content?: string; type?: string },
   ) {
+    assertDiscussionRole(session.role);
     const d = await this.prisma.discussion.findUnique({
       where: { id },
       select: { projectId: true, authorId: true },
@@ -74,6 +100,7 @@ export class DiscussionsService {
   }
 
   async remove(session: { id: string; role: string }, id: string) {
+    assertDiscussionRole(session.role);
     const d = await this.prisma.discussion.findUnique({
       where: { id },
       select: { projectId: true, authorId: true },
@@ -88,6 +115,7 @@ export class DiscussionsService {
   }
 
   async addReply(session: { id: string; role: string }, id: string, content: string) {
+    assertDiscussionRole(session.role);
     await this.getById(session.id, session.role, id);
     return this.prisma.discussionReply.create({
       data: { discussionId: id, authorId: session.id, content },
@@ -100,6 +128,7 @@ export class DiscussionsService {
     replyId: string,
     content: string,
   ) {
+    assertDiscussionRole(session.role);
     const r = await this.prisma.discussionReply.findUnique({
       where: { id: replyId },
       select: { discussionId: true, authorId: true },
@@ -128,6 +157,7 @@ export class DiscussionsService {
     discussionId: string,
     replyId: string,
   ) {
+    assertDiscussionRole(session.role);
     const d = await this.prisma.discussion.findUnique({
       where: { id: discussionId },
       select: { projectId: true },
@@ -147,6 +177,7 @@ export class DiscussionsService {
   }
 
   async pin(session: { id: string; role: string }, id: string) {
+    assertDiscussionRole(session.role);
     const d = await this.prisma.discussion.findUnique({
       where: { id },
       select: { projectId: true, pinned: true },
@@ -160,5 +191,57 @@ export class DiscussionsService {
       where: { id },
       data: { pinned: !d.pinned },
     });
+  }
+
+  async addAttachment(
+    session: { id: string; role: string },
+    discussionId: string,
+    body: { url: string; name: string; mimeType?: string; size?: number },
+  ) {
+    assertDiscussionRole(session.role);
+    await this.getById(session.id, session.role, discussionId);
+    return this.prisma.discussionAttachment.create({
+      data: {
+        discussionId,
+        url: body.url,
+        name: body.name,
+        mimeType: body.mimeType,
+        size: body.size,
+      },
+    });
+  }
+
+  async removeAttachment(
+    session: { id: string; role: string },
+    discussionId: string,
+    attachmentId: string,
+  ) {
+    assertDiscussionRole(session.role);
+    const att = await this.prisma.discussionAttachment.findUnique({
+      where: { id: attachmentId },
+      include: {
+        discussion: { select: { projectId: true, authorId: true } },
+      },
+    });
+    if (!att || att.discussionId !== discussionId) {
+      throw new NotFoundException();
+    }
+    await assertProjectAccess(
+      this.prisma,
+      session.id,
+      session.role,
+      att.discussion.projectId,
+    );
+    const can =
+      att.discussion.authorId === session.id ||
+      session.role === 'admin' ||
+      session.role === 'pm';
+    if (!can) {
+      throw new ForbiddenException();
+    }
+    await this.prisma.discussionAttachment.delete({
+      where: { id: attachmentId },
+    });
+    return { ok: true };
   }
 }

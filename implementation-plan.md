@@ -174,7 +174,7 @@ simprov2/
 │   │   ├── sprints/
 │   │   ├── maintenance/
 │   │   ├── meetings/
-│   │   ├── discussions/
+│   │   ├── discussins/
 │   │   ├── clients/
 │   │   ├── assets/
 │   │   ├── notifications/
@@ -2164,7 +2164,7 @@ await auth.api.signUpEmail({
 
 ### Phase 6: Gantt
 
-- [ ] **Frontend:** `/projects/[id]/gantt` — timeline component (react-gantt-task or custom), task drag/resize updates `startDate`/`dueDate`
+- [x] **Frontend:** `/projects/[id]/gantt` — timeline component (react-gantt-task or custom), task drag/resize updates `startDate`/`dueDate` — implemented with `gantt-task-react` + `next/dynamic`; `GET /api/tasks?forGantt=1&take=2000` for full project tasks; dependency arrows from `TaskDependency`; view modes Day/Week/Month; viewer/client read-only
 
 ---
 

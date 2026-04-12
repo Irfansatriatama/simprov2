@@ -22,6 +22,7 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new HttpExceptionFilter());
   const port = process.env.PORT ?? 3001;
+  console.log(`Server is running on port ${port}`);
   await app.listen(port);
 }
 bootstrap();

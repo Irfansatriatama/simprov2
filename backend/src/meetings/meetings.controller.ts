@@ -43,6 +43,7 @@ export class MeetingsController {
       startTime: string;
       endTime: string;
       location?: string;
+      status?: string;
       projectIds?: string[];
       attendeeIds?: string[];
     },
@@ -50,6 +51,33 @@ export class MeetingsController {
     return this.meetings.create(
       { id: session.user.id, name: session.user.name, role: session.user.role as string },
       body,
+    );
+  }
+
+  @Post(':id/notulensi/attachments')
+  addNotulensiAttachment(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Body()
+    body: { url: string; name: string; mimeType?: string; size?: number },
+  ) {
+    return this.meetings.addNotulensiAttachment(
+      { id: session.user.id, role: session.user.role as string },
+      id,
+      body,
+    );
+  }
+
+  @Delete(':id/notulensi/attachments/:attachmentId')
+  removeNotulensiAttachment(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+  ) {
+    return this.meetings.removeNotulensiAttachment(
+      { id: session.user.id, role: session.user.role as string },
+      id,
+      attachmentId,
     );
   }
 
@@ -131,6 +159,19 @@ export class MeetingsController {
       id,
       itemId,
       body,
+    );
+  }
+
+  @Delete(':id/agenda/:itemId')
+  deleteAgenda(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+  ) {
+    return this.meetings.deleteAgendaItem(
+      { id: session.user.id, role: session.user.role as string },
+      id,
+      itemId,
     );
   }
 

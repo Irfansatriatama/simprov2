@@ -19,6 +19,14 @@ class CreateUserDto {
     role;
     phoneNumber;
     company;
+    clientId;
+    department;
+    position;
+    bio;
+    linkedin;
+    github;
+    timezone;
+    status;
 }
 exports.CreateUserDto = CreateUserDto;
 __decorate([
@@ -54,4 +62,44 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "company", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "clientId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "department", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "position", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "bio", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "linkedin", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "github", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "timezone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['active', 'inactive', 'invited']),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "status", void 0);
 //# sourceMappingURL=create-user.dto.js.map

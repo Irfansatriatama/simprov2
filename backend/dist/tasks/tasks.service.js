@@ -27,11 +27,17 @@ const taskListSelect = {
     startDate: true,
     sprintId: true,
     parentTaskId: true,
+    epicId: true,
     timeLogged: true,
     createdAt: true,
+    updatedAt: true,
+    tags: true,
     assignees: {
         select: { user: { select: { id: true, name: true, image: true } } },
     },
+    sprint: { select: { id: true, name: true } },
+    _count: { select: { comments: true, checklists: true } },
+    dependsOn: { select: { dependsOnId: true } },
 };
 let TasksService = class TasksService {
     prisma;
@@ -45,10 +51,7 @@ let TasksService = class TasksService {
     actor(s) {
         return { id: s.id, name: s.name };
     }
-    async list(userId, role, q) {
-        await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, q.projectId);
-        const page = Math.max(1, parseInt(q.page || '1', 10) || 1);
-        const take = Math.min(100, Math.max(1, parseInt(q.take || '50', 10) || 50));
+    buildTaskWhere(q) {
         const where = { projectId: q.projectId };
         if (q.sprintId)
             where.sprintId = q.sprintId;
@@ -62,19 +65,141 @@ let TasksService = class TasksService {
         if (q.search) {
             where.title = { contains: q.search, mode: 'insensitive' };
         }
+        return where;
+    }
+    scopeTaskWhereForRole(role, userId, where) {
+        if (role !== 'developer')
+            return where;
+        return {
+            AND: [where, { assignees: { some: { userId } } }],
+        };
+    }
+    async assertDeveloperIsAssignee(role, userId, taskId) {
+        if (role !== 'developer')
+            return;
+        const row = await this.prisma.taskAssignee.findFirst({
+            where: { taskId, userId },
+            select: { taskId: true },
+        });
+        if (!row)
+            throw new common_1.ForbiddenException();
+    }
+    buildTaskOrderBy(sortBy, sortDir) {
+        const dir = sortDir === 'desc' ? 'desc' : 'asc';
+        const allowed = new Set([
+            'title',
+            'status',
+            'priority',
+            'dueDate',
+            'createdAt',
+            'updatedAt',
+        ]);
+        if (sortBy && allowed.has(sortBy)) {
+            return [
+                { [sortBy]: dir },
+                { id: dir },
+            ];
+        }
+        return [{ status: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }];
+    }
+    async attachEpicTitles(rows) {
+        const epicIds = [...new Set(rows.map((r) => r.epicId).filter(Boolean))];
+        if (epicIds.length === 0) {
+            return rows.map((r) => ({ ...r, epic: null }));
+        }
+        const epics = await this.prisma.task.findMany({
+            where: { id: { in: epicIds } },
+            select: { id: true, title: true },
+        });
+        const map = new Map(epics.map((e) => [e.id, e]));
+        return rows.map((r) => ({
+            ...r,
+            epic: r.epicId
+                ? (map.get(r.epicId) ?? { id: r.epicId, title: '(Epic tidak ditemukan)' })
+                : null,
+        }));
+    }
+    async list(userId, role, q) {
+        await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, q.projectId);
+        const forGantt = q.forGantt === '1' || q.forGantt === 'true';
+        const take = forGantt
+            ? Math.min(2000, Math.max(1, parseInt(q.take || '2000', 10) || 2000))
+            : Math.min(300, Math.max(1, parseInt(q.take || '50', 10) || 50));
+        const where = this.scopeTaskWhereForRole(role, userId, this.buildTaskWhere(q));
+        if (q.cursor) {
+            const anchor = await this.prisma.task.findFirst({
+                where: { ...where, id: q.cursor },
+                select: { createdAt: true, id: true },
+            });
+            if (!anchor) {
+                throw new common_1.BadRequestException('Invalid cursor');
+            }
+            const cursorWhere = {
+                AND: [
+                    where,
+                    {
+                        OR: [
+                            { createdAt: { lt: anchor.createdAt } },
+                            {
+                                AND: [
+                                    { createdAt: anchor.createdAt },
+                                    { id: { lt: anchor.id } },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+            const orderBy = [
+                { createdAt: 'desc' },
+                { id: 'desc' },
+            ];
+            const [total, chunk] = await this.prisma.$transaction([
+                this.prisma.task.count({ where }),
+                this.prisma.task.findMany({
+                    where: cursorWhere,
+                    select: taskListSelect,
+                    orderBy,
+                    take: take + 1,
+                }),
+            ]);
+            const hasMore = chunk.length > take;
+            const rows = hasMore ? chunk.slice(0, take) : chunk;
+            const data = await this.attachEpicTitles(rows);
+            const nextCursor = hasMore && data.length > 0 ? data[data.length - 1].id : null;
+            return {
+                data,
+                meta: {
+                    total,
+                    take,
+                    nextCursor,
+                    hasMore,
+                    mode: 'cursor',
+                },
+            };
+        }
+        const page = Math.max(1, parseInt(q.page || '1', 10) || 1);
+        const orderBy = this.buildTaskOrderBy(q.sortBy, q.sortDir);
         const [total, rows] = await this.prisma.$transaction([
             this.prisma.task.count({ where }),
             this.prisma.task.findMany({
                 where,
                 select: taskListSelect,
-                orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+                orderBy,
                 skip: (page - 1) * take,
                 take,
             }),
         ]);
+        const data = await this.attachEpicTitles(rows);
         return {
-            data: rows,
-            meta: { total, page, take, pages: Math.ceil(total / take) || 1 },
+            data,
+            meta: {
+                total,
+                page,
+                take,
+                pages: Math.ceil(total / take) || 1,
+                mode: 'offset',
+            },
         };
     }
     async create(session, dto) {
@@ -156,19 +281,25 @@ let TasksService = class TasksService {
                 tags: true,
                 timeLogged: true,
                 createdAt: true,
+                updatedAt: true,
                 assignees: {
                     select: { user: { select: { id: true, name: true, image: true } } },
                 },
                 attachments: true,
                 checklists: { orderBy: { order: 'asc' } },
                 dependsOn: {
-                    select: { id: true, dependsOnId: true, type: true },
+                    select: {
+                        id: true,
+                        type: true,
+                        dependsOn: { select: { id: true, title: true } },
+                    },
                 },
             },
         });
         if (!t)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, t.projectId);
+        await this.assertDeveloperIsAssignee(role, userId, id);
         return t;
     }
     async update(session, id, dto) {
@@ -182,6 +313,7 @@ let TasksService = class TasksService {
         if (session.role === 'viewer' || session.role === 'client') {
             throw new common_1.ForbiddenException();
         }
+        await this.assertDeveloperIsAssignee(session.role, session.id, id);
         return this.prisma.$transaction(async (tx) => {
             if (dto.assigneeIds) {
                 await tx.taskAssignee.deleteMany({ where: { taskId: id } });
@@ -238,6 +370,9 @@ let TasksService = class TasksService {
         if (session.role === 'viewer' || session.role === 'client') {
             throw new common_1.ForbiddenException();
         }
+        if (session.role === 'developer') {
+            throw new common_1.ForbiddenException();
+        }
         await this.prisma.$transaction(async (tx) => {
             await tx.task.delete({ where: { id } });
             await this.activityLog.log(tx, {
@@ -256,6 +391,9 @@ let TasksService = class TasksService {
         if (session.role === 'viewer' || session.role === 'client') {
             throw new common_1.ForbiddenException();
         }
+        if (session.role === 'developer' && body.action === 'delete') {
+            throw new common_1.ForbiddenException();
+        }
         const first = await this.prisma.task.findFirst({
             where: { id: { in: body.ids } },
             select: { projectId: true },
@@ -263,6 +401,13 @@ let TasksService = class TasksService {
         if (!first)
             throw new common_1.BadRequestException('No tasks');
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, first.projectId);
+        if (session.role === 'developer') {
+            const n = await this.prisma.taskAssignee.count({
+                where: { userId: session.id, taskId: { in: body.ids } },
+            });
+            if (n !== body.ids.length)
+                throw new common_1.ForbiddenException();
+        }
         const sameProject = await this.prisma.task.count({
             where: {
                 id: { in: body.ids },
@@ -271,24 +416,40 @@ let TasksService = class TasksService {
         });
         if (sameProject)
             throw new common_1.BadRequestException('Tasks must share project');
-        if (body.action === 'delete') {
-            await this.prisma.task.deleteMany({ where: { id: { in: body.ids } } });
-            await (0, project_progress_1.recalcProjectProgress)(this.prisma, first.projectId);
-            return { ok: true, deleted: body.ids.length };
+        const patch = {};
+        if (body.status !== undefined)
+            patch.status = body.status;
+        if (body.priority !== undefined)
+            patch.priority = body.priority;
+        if (body.sprintId !== undefined) {
+            patch.sprintId = body.sprintId;
         }
-        await this.prisma.task.updateMany({
-            where: { id: { in: body.ids } },
-            data: {
-                status: body.status,
-                priority: body.priority,
-                sprintId: body.sprintId === null ? null : body.sprintId,
-            },
+        await this.prisma.$transaction(async (tx) => {
+            if (body.action === 'delete') {
+                await tx.task.deleteMany({ where: { id: { in: body.ids } } });
+                return;
+            }
+            if (Object.keys(patch).length === 0) {
+                throw new common_1.BadRequestException('No fields to update');
+            }
+            await tx.task.updateMany({
+                where: { id: { in: body.ids } },
+                data: patch,
+            });
         });
         await (0, project_progress_1.recalcProjectProgress)(this.prisma, first.projectId);
+        if (body.action === 'delete') {
+            return { ok: true, deleted: body.ids.length };
+        }
         return { ok: true, updated: body.ids.length };
     }
     async exportCsv(userId, role, projectId) {
         await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, projectId);
+        if (role === 'viewer' ||
+            role === 'client' ||
+            role === 'developer') {
+            throw new common_1.ForbiddenException();
+        }
         const rows = await this.prisma.task.findMany({
             where: { projectId },
             select: {
@@ -333,23 +494,42 @@ let TasksService = class TasksService {
         if (!t)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, t.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         return this.prisma.taskComment.create({
             data: { taskId, authorId: session.id, content: dto.content },
             select: { id: true, content: true, createdAt: true, authorId: true },
         });
     }
-    listComments(userId, role, taskId) {
-        return this.prisma.task
-            .findUnique({
+    async listComments(userId, role, taskId) {
+        const t = await this.prisma.task.findUnique({
             where: { id: taskId },
-            select: { projectId: true, comments: { orderBy: { createdAt: 'asc' } } },
-        })
-            .then(async (t) => {
-            if (!t)
-                throw new common_1.NotFoundException();
-            await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, t.projectId);
-            return t.comments;
+            select: { projectId: true },
         });
+        if (!t)
+            throw new common_1.NotFoundException();
+        await (0, project_access_1.assertProjectAccess)(this.prisma, userId, role, t.projectId);
+        await this.assertDeveloperIsAssignee(role, userId, taskId);
+        const comments = await this.prisma.taskComment.findMany({
+            where: { taskId },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, content: true, createdAt: true, authorId: true },
+        });
+        if (comments.length === 0)
+            return [];
+        const authorIds = [...new Set(comments.map((c) => c.authorId))];
+        const authors = await this.prisma.user.findMany({
+            where: { id: { in: authorIds } },
+            select: { id: true, name: true, image: true },
+        });
+        const byId = new Map(authors.map((a) => [a.id, a]));
+        return comments.map((c) => ({
+            ...c,
+            author: byId.get(c.authorId) ?? {
+                id: c.authorId,
+                name: 'Unknown',
+                image: null,
+            },
+        }));
     }
     async updateComment(session, taskId, commentId, dto) {
         const c = await this.prisma.taskComment.findUnique({
@@ -359,6 +539,7 @@ let TasksService = class TasksService {
         if (!c || c.taskId !== taskId)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, c.task.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         if (c.authorId !== session.id && session.role !== 'admin' && session.role !== 'pm') {
             throw new common_1.ForbiddenException();
         }
@@ -375,6 +556,7 @@ let TasksService = class TasksService {
         if (!c || c.taskId !== taskId)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, c.task.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         if (c.authorId !== session.id && session.role !== 'admin' && session.role !== 'pm') {
             throw new common_1.ForbiddenException();
         }
@@ -389,6 +571,7 @@ let TasksService = class TasksService {
         if (!t)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, t.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         return this.prisma.taskChecklist.create({
             data: {
                 taskId,
@@ -405,6 +588,7 @@ let TasksService = class TasksService {
         if (!row || row.taskId !== taskId)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, row.task.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         return this.prisma.taskChecklist.update({
             where: { id: checklistId },
             data: dto,
@@ -418,6 +602,7 @@ let TasksService = class TasksService {
         if (!row || row.taskId !== taskId)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, row.task.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         await this.prisma.taskChecklist.delete({ where: { id: checklistId } });
         return { ok: true };
     }
@@ -429,6 +614,7 @@ let TasksService = class TasksService {
         if (!t)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, t.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         return this.prisma.task.update({
             where: { id: taskId },
             data: { timeLogged: (t.timeLogged ?? 0) + dto.hours },
@@ -443,6 +629,7 @@ let TasksService = class TasksService {
         if (!t)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, t.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         return this.prisma.taskAttachment.create({
             data: {
                 taskId,
@@ -461,6 +648,7 @@ let TasksService = class TasksService {
         if (!a || a.taskId !== taskId)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, a.task.projectId);
+        await this.assertDeveloperIsAssignee(session.role, session.id, taskId);
         await this.prisma.taskAttachment.delete({ where: { id: attachmentId } });
         return { ok: true };
     }
@@ -472,6 +660,9 @@ let TasksService = class TasksService {
         if (!t)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, t.projectId);
+        if (session.role === 'developer') {
+            throw new common_1.ForbiddenException();
+        }
         const dep = await this.prisma.task.findUnique({
             where: { id: dto.dependsOnId },
             select: { projectId: true },
@@ -495,6 +686,9 @@ let TasksService = class TasksService {
         if (!d || d.taskId !== taskId)
             throw new common_1.NotFoundException();
         await (0, project_access_1.assertProjectAccess)(this.prisma, session.id, session.role, d.task.projectId);
+        if (session.role === 'developer') {
+            throw new common_1.ForbiddenException();
+        }
         await this.prisma.taskDependency.delete({ where: { id: depId } });
         return { ok: true };
     }

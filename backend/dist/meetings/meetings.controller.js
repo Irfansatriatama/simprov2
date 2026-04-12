@@ -27,6 +27,12 @@ let MeetingsController = class MeetingsController {
     create(session, body) {
         return this.meetings.create({ id: session.user.id, name: session.user.name, role: session.user.role }, body);
     }
+    addNotulensiAttachment(session, id, body) {
+        return this.meetings.addNotulensiAttachment({ id: session.user.id, role: session.user.role }, id, body);
+    }
+    removeNotulensiAttachment(session, id, attachmentId) {
+        return this.meetings.removeNotulensiAttachment({ id: session.user.id, role: session.user.role }, id, attachmentId);
+    }
     get(session, id) {
         return this.meetings.getById(session.user.id, session.user.role, id);
     }
@@ -48,6 +54,9 @@ let MeetingsController = class MeetingsController {
     }
     patchAgenda(session, id, itemId, body) {
         return this.meetings.patchAgenda({ id: session.user.id, role: session.user.role }, id, itemId, body);
+    }
+    deleteAgenda(session, id, itemId) {
+        return this.meetings.deleteAgendaItem({ id: session.user.id, role: session.user.role }, id, itemId);
     }
     addAction(session, id, body) {
         return this.meetings.addActionItem({ id: session.user.id, role: session.user.role }, id, body);
@@ -77,6 +86,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], MeetingsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)(':id/notulensi/attachments'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], MeetingsController.prototype, "addNotulensiAttachment", null);
+__decorate([
+    (0, common_1.Delete)(':id/notulensi/attachments/:attachmentId'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Param)('attachmentId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], MeetingsController.prototype, "removeNotulensiAttachment", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, nestjs_better_auth_1.Session)()),
@@ -130,6 +157,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, Object]),
     __metadata("design:returntype", void 0)
 ], MeetingsController.prototype, "patchAgenda", null);
+__decorate([
+    (0, common_1.Delete)(':id/agenda/:itemId'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Param)('itemId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], MeetingsController.prototype, "deleteAgenda", null);
 __decorate([
     (0, common_1.Post)(':id/action-items'),
     __param(0, (0, nestjs_better_auth_1.Session)()),

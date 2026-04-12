@@ -41,7 +41,7 @@ let TasksController = class TasksController {
             role: session.user.role,
         }, body);
     }
-    list(session, projectId, sprintId, status, priority, assigneeId, search, page, take) {
+    list(session, projectId, sprintId, status, priority, assigneeId, search, page, take, cursor, sortBy, sortDir, forGantt) {
         return this.tasks.list(session.user.id, session.user.role, {
             projectId,
             sprintId,
@@ -51,6 +51,10 @@ let TasksController = class TasksController {
             search,
             page,
             take,
+            cursor,
+            sortBy,
+            sortDir,
+            forGantt,
         });
     }
     create(session, dto) {
@@ -147,8 +151,12 @@ __decorate([
     __param(6, (0, common_1.Query)('search')),
     __param(7, (0, common_1.Query)('page')),
     __param(8, (0, common_1.Query)('take')),
+    __param(9, (0, common_1.Query)('cursor')),
+    __param(10, (0, common_1.Query)('sortBy')),
+    __param(11, (0, common_1.Query)('sortDir')),
+    __param(12, (0, common_1.Query)('forGantt')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TasksController.prototype, "list", null);
 __decorate([

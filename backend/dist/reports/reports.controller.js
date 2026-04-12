@@ -24,6 +24,15 @@ let ReportsController = class ReportsController {
     dashboard(session) {
         return this.reports.dashboard(session.user.id, session.user.role);
     }
+    dashboardTaskDistribution(session, projectId) {
+        return this.reports.dashboardTaskDistribution(session.user.id, session.user.role, projectId);
+    }
+    dashboardProgressOverview(session, projectId) {
+        return this.reports.dashboardProgressOverview(session.user.id, session.user.role, projectId);
+    }
+    dashboardUpcomingDeadlines(session, projectId) {
+        return this.reports.dashboardUpcomingDeadlines(session.user.id, session.user.role, projectId);
+    }
     progress(session, projectId) {
         return this.reports.progress(session.user.id, session.user.role, projectId);
     }
@@ -48,6 +57,30 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "dashboard", null);
+__decorate([
+    (0, common_1.Get)('dashboard/task-distribution'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Query)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "dashboardTaskDistribution", null);
+__decorate([
+    (0, common_1.Get)('dashboard/progress-overview'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Query)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "dashboardProgressOverview", null);
+__decorate([
+    (0, common_1.Get)('dashboard/upcoming-deadlines'),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Query)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "dashboardUpcomingDeadlines", null);
 __decorate([
     (0, common_1.Get)('progress'),
     __param(0, (0, nestjs_better_auth_1.Session)()),

@@ -5,13 +5,23 @@ import { PrismaService } from '../prisma/prisma.service';
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(userId: string, page?: string, take?: string) {
+  list(
+    userId: string,
+    page?: string,
+    take?: string,
+    unreadOnly?: string,
+  ) {
     const p = Math.max(1, parseInt(page || '1', 10) || 1);
     const t = Math.min(100, Math.max(1, parseInt(take || '30', 10) || 30));
+    const onlyUnread = unreadOnly === '1' || unreadOnly === 'true';
+    const where = {
+      userId,
+      ...(onlyUnread ? { read: false } : {}),
+    };
     return this.prisma.$transaction([
-      this.prisma.notification.count({ where: { userId } }),
+      this.prisma.notification.count({ where }),
       this.prisma.notification.findMany({
-        where: { userId },
+        where,
         orderBy: { createdAt: 'desc' },
         skip: (p - 1) * t,
         take: t,

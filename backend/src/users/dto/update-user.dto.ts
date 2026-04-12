@@ -19,6 +19,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
   department?: string;
 
   @IsOptional()
@@ -48,4 +52,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsIn(['admin', 'pm', 'developer', 'viewer', 'client'])
   role?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'inactive', 'invited'])
+  status?: string;
 }

@@ -71,6 +71,10 @@ export class TasksController {
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('take') take?: string,
+    @Query('cursor') cursor?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDir') sortDir?: string,
+    @Query('forGantt') forGantt?: string,
   ) {
     return this.tasks.list(session.user.id, session.user.role as string, {
       projectId,
@@ -81,6 +85,10 @@ export class TasksController {
       search,
       page,
       take,
+      cursor,
+      sortBy,
+      sortDir,
+      forGantt,
     });
   }
 

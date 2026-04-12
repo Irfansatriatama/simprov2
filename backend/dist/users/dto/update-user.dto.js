@@ -16,6 +16,7 @@ class UpdateUserDto {
     name;
     phoneNumber;
     company;
+    clientId;
     department;
     position;
     bio;
@@ -24,6 +25,7 @@ class UpdateUserDto {
     timezone;
     image;
     role;
+    status;
 }
 exports.UpdateUserDto = UpdateUserDto;
 __decorate([
@@ -46,6 +48,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateUserDto.prototype, "company", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateUserDto.prototype, "clientId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -86,4 +93,9 @@ __decorate([
     (0, class_validator_1.IsIn)(['admin', 'pm', 'developer', 'viewer', 'client']),
     __metadata("design:type", String)
 ], UpdateUserDto.prototype, "role", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['active', 'inactive', 'invited']),
+    __metadata("design:type", String)
+], UpdateUserDto.prototype, "status", void 0);
 //# sourceMappingURL=update-user.dto.js.map

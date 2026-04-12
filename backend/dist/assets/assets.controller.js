@@ -14,62 +14,76 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssetsController = void 0;
 const common_1 = require("@nestjs/common");
+const nestjs_better_auth_1 = require("@thallesp/nestjs-better-auth");
 const assets_service_1 = require("./assets.service");
+function assertPmOrAdmin(role) {
+    if (role !== 'admin' && role !== 'pm') {
+        throw new common_1.ForbiddenException();
+    }
+}
 let AssetsController = class AssetsController {
     assets;
     constructor(assets) {
         this.assets = assets;
     }
-    list() {
+    list(_session) {
         return this.assets.list();
     }
-    create(body) {
+    create(session, body) {
+        assertPmOrAdmin(session.user.role);
         return this.assets.create(body);
     }
-    get(id) {
+    get(_session, id) {
         return this.assets.get(id);
     }
-    patch(id, body) {
+    patch(session, id, body) {
+        assertPmOrAdmin(session.user.role);
         return this.assets.update(id, body);
     }
-    remove(id) {
+    remove(session, id) {
+        assertPmOrAdmin(session.user.role);
         return this.assets.remove(id);
     }
 };
 exports.AssetsController = AssetsController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "list", null);
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "get", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "patch", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, nestjs_better_auth_1.Session)()),
+    __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], AssetsController.prototype, "remove", null);
 exports.AssetsController = AssetsController = __decorate([
